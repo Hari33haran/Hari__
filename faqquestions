@@ -1,3 +1,4 @@
+
 import * as React from 'react';
 import styles from './Faquestion.module.scss';
 
@@ -210,7 +211,14 @@ public closerichtext=()=>{
 
                 <React.Fragment>
                 <div className={"itemResponse"}><div dangerouslySetInnerHTML={{__html: item.answer}} /></div>
-                    <div className={"itemResponse"}><button className={styles.spanclasscreate} onClick={()=>this.edititem(item.Id)}>Edit</button></div>
+                {
+                  this.state.isAdmin
+                  ?
+                  <div className={"itemResponse"}><button className={styles.spanclasscreate} onClick={()=>this.edititem(item.Id)}>Edit</button></div>
+                  :
+                  <div></div>
+                }
+                  
                     </React.Fragment>
                     :
                     <>
@@ -224,13 +232,17 @@ public closerichtext=()=>{
                     onChange={(text)=>this.onTextChange(text)}/>
                     <input className={styles.inputproperty}type='number' onChange={(e)=>this.updateorder(e)} value={this.state.order}></input>
                    
-                  
+                    {
+                  this.state.isAdmin
+                  ?
                     <span>
                     <button className={styles.spanclasscreate}  onClick={this.closerichtext}>Cancel</button>
                     <button  className={styles.spanclasscreate} onClick={()=>this.savebutton(item.Id)}>Save</button>
                     <button  className={styles.spanclasscreate} onClick={()=>this.deleteItem(item.Id)}>Delete</button>
                     
-                    </span>      
+                    </span>  
+                    :<div></div>
+               }    
                     </div>
                     :
                     <React.Fragment>
@@ -275,6 +287,7 @@ public closerichtext=()=>{
     );
   }
 }
+
 //-- Custom Style--/
 .accordion__title > *:last-child,
 .accordion__body > *:last-child {
