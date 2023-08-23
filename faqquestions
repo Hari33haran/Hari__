@@ -1,1 +1,505 @@
+import * as React from 'react';
+import styles from './Faquestion.module.scss';
 
+
+import { SPHttpClient, ISPHttpClientOptions, SPHttpClientResponse } from '@microsoft/sp-http';
+import { IFaquestionProps } from './IFaquestionProps';
+import {IAccordionListItem} from './AccordianListItem';
+import { Accordion } from "@pnp/spfx-controls-react/lib/Accordion";
+import { RichText } from "@pnp/spfx-controls-react/lib/RichText";
+import { Modal,DefaultButton} from 'office-ui-fabric-react';
+//import 'react-accessible-accordion/dist/react-accessible-accordion.css';
+
+// Demo styles, see 'Styles' section below for some notes on use.
+//import 'react-accessible-accordion/dist/fancy-example.css';
+import './CustomStyle.css';
+
+export default class Faquestion extends React.Component<IFaquestionProps, any> {
+
+
+  constructor(props:IFaquestionProps){
+    super(props);
+    this.state={
+      faq:[],
+      question:"",
+      answer:"",
+      modal:false,
+      modalitems:[],
+      editmodal:true,
+      id:''
+    }
+  }
+
+  componentDidMount(): void {
+    this.getallitems();
+  }
+
+  public getallitems(){
+    this.props.context.spHttpClient.get("https://wintrust.sharepoint.com/sites/SharePointTeam/_api/lists/GetByTitle('faquestion')/items",
+    SPHttpClient.configurations.v1).then((response: SPHttpClientResponse)=>{
+      response.json().then((responseJSON:any)=>{
+    console.log(responseJSON);
+    this.setState({faq:responseJSON.value});
+  });
+
+    
+    })
+  }
+ 
+
+  edititem(id:any){
+    this.getitems(id);
+
+  }
+
+  public getitems(id:any):void {
+    this.props.context.spHttpClient.get(`https://wintrust.sharepoint.com/sites/SharePointTeam/_api/lists/GetByTitle('faquestion')/items(${id})`,
+    SPHttpClient.configurations.v1).then((response: SPHttpClientResponse)=>{
+      response.json().then((responseJSON:any)=>{
+    console.log(responseJSON);
+    this.setState({answer:responseJSON.answer,id:responseJSON.ID,question:responseJSON.Title});
+  });
+
+    
+    }).catch(error=>{
+      console.log(error)
+    })
+    this.setState({editmodal:false})
+  }
+
+  private isModalOpen=()=>{
+    
+    return this.state.modal;
+      
+  }
+
+  public onTextChange(text:any){
+    this.setState({answer:text});
+    return text;
+  }
+
+public closerichtext=()=>{
+  this.setState({editmodal:true})
+  }
+
+  public savebutton(id:any){
+    const body: string = JSON.stringify({
+      'Title': this.state.question,
+      'answer': this.state.answer
+    });
+    this.props.context.spHttpClient.post(`https://wintrust.sharepoint.com/sites/SharePointTeam/_api/lists/GetByTitle('faquestion')/items(${id})`,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'Accept': 'application/json;odata=nometadata',
+            'Content-type': 'application/json;odata=nometadata',
+            'odata-version': '',
+            'IF-MATCH': '*',
+            'X-HTTP-Method': 'MERGE'
+          },
+          body: body
+        })
+        .then((response: SPHttpClientResponse) => {
+          if (response.ok) {
+            this.getallitems(); 
+          } 
+        }).catch(error => {
+          console.log(error);
+        });
+        this.getallitems();
+        this.setState({editmodal:true});
+        
+  }
+
+  public createitems=()=>{
+
+    const spOpts: ISPHttpClientOptions = {
+      headers: {
+        'Accept': 'application/json;odata=nometadata',
+        'Content-type': 'application/json;odata=nometadata',
+        'odata-version': ''
+      },
+      body: JSON.stringify({
+        'Title': this.state.question,
+        'answer': this.state.answer
+      })};
+    
+    this.props.context.spHttpClient.post(`https://wintrust.sharepoint.com/sites/SharePointTeam/_api/lists/GetByTitle('faquestion')/items`, SPHttpClient.configurations.v1, spOpts)
+      .then((response: SPHttpClientResponse) => {
+        // Access properties of the response object. 
+        
+
+        //response.json() returns a promise so you get access to the json in the resolve callback.
+        response.json().then((responseJSON: JSON) => {
+          console.log(responseJSON);
+          this.getallitems();
+          this.setState({editmodal:true,modal:false});
+        });
+      });
+
+  }
+  private deleteItem = (id:any): void => {
+    const deleteid: number = parseInt(id);
+      this.props.context.spHttpClient.post(`${this.props.context.pageContext.web.absoluteUrl}/_api/web/lists/getbytitle('faquestion')/items(${deleteid})`,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            'Accept': 'application/json;odata=nometadata',
+            'Content-type': 'application/json;odata=verbose',
+            'odata-version': '',
+            'IF-MATCH': '*',
+            'X-HTTP-Method': 'DELETE'
+          }
+        })
+        .then((response: SPHttpClientResponse) => {
+          this.getallitems();
+        this.setState({editmodal:true});
+        });
+        
+  }
+
+
+  public getquestion(e:any){
+
+    this.setState({question:e.target.value})
+
+  }
+  public getanswer(e:any){
+
+    this.setState({answer:e.target.value})
+
+  }
+
+  public updatequestion(e:any){
+    this.setState({question:e.target.value})
+  }
+  
+
+  public render(): React.ReactElement<IFaquestionProps> {
+    
+
+    return (
+      <div className={ styles.faquestion }>
+        <div className={ styles.container }>
+          <div className={ styles.row }>
+            <div className={ styles.column }>
+              <button className={styles.spanclasscreate} onClick={()=>this.setState({modal:true})}>Create</button>
+              {
+               (this.state.faq && this.state.faq.length) ? this.state.faq.map((item:IAccordionListItem) => {
+                return(
+                <Accordion title={item.Title} defaultCollapsed={true} className={"itemCell"} key={item.Id} collapsedIcon={"ChevronRight"} expandedIcon={"ChevronDown"}>
+                  <div className={"itemContent"}>
+              {
+                this.state.editmodal  ?
+
+                <React.Fragment>
+                <div className={"itemResponse"}>{item.answer}</div>
+                    <div className={"itemResponse"}><button className={styles.spanclasscreate} onClick={()=>this.edititem(item.Id)}>Edit</button></div>
+                    </React.Fragment>
+                    :
+                    <>
+                    {
+                      this.state.id==item.Id
+                      ?
+                      
+                    <div className={"itemResponse"}>
+                       <input className={styles.inputproperty}type='text' onChange={(e)=>this.updatequestion(e)} value={this.state.question}></input>
+                      <RichText value={this.state.answer}
+                    onChange={(text)=>this.onTextChange(text)}/>
+                   
+                  
+                    <span>
+                    <button className={styles.spanclasscreate}  onClick={this.closerichtext}>Cancel</button>
+                    <button  className={styles.spanclasscreate} onClick={()=>this.savebutton(item.Id)}>Save</button>
+                    <button  className={styles.spanclasscreate} onClick={()=>this.deleteItem(item.Id)}>Delete</button>
+                    
+                    </span>      
+                    </div>
+                    :
+                    <React.Fragment>
+                <div className={"itemResponse"}>{item.answer}</div>
+                    <div className={"itemResponse"}><button className={styles.spanclasscreate}onClick={()=>this.edititem(item.Id)}>Edit</button></div>
+                    </React.Fragment>
+                    }
+                    </>
+                    
+                                                
+              }
+                  </div>
+                </Accordion>
+                )
+                }):<div>No Data</div>
+              }
+              <Modal isOpen={this.isModalOpen()} isBlocking={false}  className='custommodalpopup' onDismiss={()=>this.setState({modal:false})}>
+                            
+                              <React.Fragment>
+                                <div>
+                                  <span>Question :</span>
+                                  <input type='text' onChange={(e)=>this.getquestion(e)} value={this.state.question}></input>
+                                </div>
+                                <div>
+                                  <span>Answer :</span>
+                                  <input type='text' onChange={(e)=>this.getanswer(e)} value={this.state.answer}></input>
+                                </div>
+                                       
+                              
+                              </React.Fragment>
+                             
+
+                            
+                            
+                    <DefaultButton className='closebtn' text="Close" onClick={()=>this.setState({modal:false})} />
+                    <DefaultButton className='closebtn' text="SAVE" onClick={this.createitems} />
+                          </Modal> 
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+/--CstomStyle--/
+.accordion__title > *:last-child,
+.accordion__body > *:last-child {
+    margin-bottom: 0;
+}
+
+    .accordion__arrow {
+        display: inline-block;
+        position: relative;
+        width: 24px;
+        height: 12px;
+        right: 10px;
+        margin-top: -28px;
+        color: white !important;
+        
+        
+    }
+
+
+    .accordion__arrow::after,
+    .accordion__arrow::before {
+        display: block;
+        position: absolute;
+        width: 10px;
+        height: 2px;
+        background-color: currentColor;
+        content: '';
+    }
+
+    .accordion__arrow::before {
+        left: 4px;
+        transform: rotate(45deg);
+    }
+
+    [aria-expanded="true"] .accordion__arrow::before {
+        transform: rotate(-45deg);
+    }
+
+    .accordion__arrow::after {
+        right: 4px;
+        transform: rotate(-45deg);
+    }
+
+    [aria-expanded="true"] .accordion__arrow::after {
+        transform: rotate(45deg);
+    }
+
+    .accordion__arrow::before, .accordion__arrow::after {
+        transition: transform .25s ease, -webkit-transform .25s ease;
+    }
+
+.accordion__item {
+background-color: "[theme: themePrimary, default: #0078d7]";
+margin-bottom: 10px;  
+}
+.accordion {
+    padding-top: 10px;
+
+}
+.accordion__item .accordion__title {
+padding: 5px 20px;;
+background-color: "[theme: themePrimary, default: #0078d7]";
+}
+.accordion__item .accordion__title h3 {
+    font-weight: normal;
+    width: 88%;
+}
+.accordion__item .accordion__body {
+padding: 15px 20px;
+background-color: "[theme: themeLighterAlt, default: #0078d7]";
+color: "[theme: bodyText, default: #333333]";
+}
+
+.accordion__item .accordion__body a {
+    color: "[theme: themePrimary, default: #0078d7]" !important;
+}
+.accordion__item .accordion__body p {
+color: "[theme: bodyText, default: #333333]";
+}
+
+
+/* -------------------------------------------------- */
+/* ---------------- Animation part ------------------ */
+/* -------------------------------------------------- */
+
+@keyframes move-down {
+0% { transform: translateY(0); }
+10% { transform: translateY(0); }
+20% { transform: translateY(5px); }
+30% { transform: translateY(0); }
+100% { transform: translateY(0); }
+}
+
+@keyframes move-up {
+0% { transform: translateY(0); }
+10% { transform: translateY(0); }
+20% { transform: translateY(-5px); }
+30% { transform: translateY(0); }
+100% { transform: translateY(0); }
+}
+
+.accordion__title--animated:hover .accordion__arrow {
+animation-name: move-down;
+animation-duration: 1.5s;
+}
+
+.accordion__title--animated[aria-expanded="true"]:hover .accordion__arrow {
+animation-name: move-up;
+animation-duration: 1.5s;
+}
+.pagination > button{
+    min-width: 30px;
+    padding: 5px;
+    border-radius: 5px;
+    }
+    
+    th{
+        width: 130px !important;
+        font-size: 14px !important;
+    }
+    td{
+        font-size: 14px !important;
+    }
+    .tablestyle{
+        margin: 40px !important;
+    }
+    .custommodalpopup{
+        font-family: Arial, Helvetica, sans-serif;
+        width: 900px !important;
+        height: 480px !important;
+        color:#000;
+        padding: 10px !important;
+        margin-left: 438px !important;
+        margin-top: 90px !important;
+        }
+        .closebtn{
+            left: 230px !important;
+            margin: 10px;
+          background-color: #0d417e !important;
+          color: white !important;
+            }
+    .accordion> button {
+                background: white !important;
+    }
+    .ql-active .ql-toolbar {
+
+        position:inherit !important;
+
+    }
+    .ql-toolbar .ms-Dropdown-title {
+        background-color: grey !important;
+    }
+    .ql-toolbar {
+
+        background-color:grey !important;
+        
+    }
+    .ql-snow .ql-toolbar button, .ql-snow.ql-toolbar button{
+        background-color:grey !important;
+    }
+
+    .ql-container.ql-snow {
+        margin-bottom: 5px;
+    }
+
+//SCSS//
+@import '~@fluentui/react/dist/sass/References.scss';
+
+.faquestion {
+  overflow: hidden;
+  padding: 1em;
+  color: "[theme:bodyText, default: #323130]";
+  color: var(--bodyText);
+  &.teams {
+    font-family: $ms-font-family-fallbacks;
+  }
+}
+
+.container {
+  // max-width: 700px;
+  margin: 0px auto;
+  // box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2), 0 25px 50px 0 rgba(0, 0, 0, 0.1);
+}
+
+.row {
+  @include ms-Grid-row;
+  @include ms-fontColor-white;
+  color: black !important;
+}
+
+.column {
+  @include ms-Grid-col;
+  @include ms-lg10;
+  @include ms-xl8;
+  @include ms-xlPush2;
+  @include ms-lgPush1;
+  width: 100% !important;
+  position: inherit !important;
+}
+
+span{
+  color: black;
+}
+
+.welcome {
+  text-align: center;
+}
+
+.spanclasscreate{
+  margin-bottom: 10px;
+  width: 100px;
+  background-color: orange;
+  border-radius: 7px;
+  color: white;
+  font-size: 16px;
+  font-weight: 400;
+  height: 30px;
+  margin-right: 5px;
+}
+
+.inputproperty{
+  width: 670px;
+  height: 44px;
+  margin-bottom: 5px;
+}
+
+.welcomeImage {
+  width: 100%;
+  max-width: 420px;
+}
+
+.links {
+  a {
+    text-decoration: none;
+    color: "[theme:link, default:#03787c]";
+    color: var(--link); // note: CSS Custom Properties support is limited to modern browsers only
+
+    &:hover {
+      text-decoration: underline;
+      color: "[theme:linkHovered, default: #014446]";
+      color: var(--linkHovered); // note: CSS Custom Properties support is limited to modern browsers only
+    }
+  }
+}
