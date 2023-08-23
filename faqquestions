@@ -26,16 +26,26 @@ export default class Faquestion extends React.Component<IFaquestionProps, any> {
       modal:false,
       modalitems:[],
       editmodal:true,
-      id:''
+      id:'',
+      isAdmin:false,
+      order:0
     }
   }
 
   componentDidMount(): void {
     this.getallitems();
-  }
+    const targetgroup:string[]=['i0solution Members','i-solution Owners']
+    this.props.context.spHttpClient.get(`${this.props.context.pageContext.web.absoluteUrl}/_api/web/currentuser/groups`,
+    SPHttpClient.configurations.v1).then((response: SPHttpClientResponse)=>{
+      response.json().then((group:any)=>{
+    this.setState({isAdmin:group.value.some((group: {Title: string})=>targetgroup.indexOf(group.Title))})
+  });
+  })
+}
+
 
   public getallitems(){
-    this.props.context.spHttpClient.get("https://wintrust.sharepoint.com/sites/SharePointTeam/_api/lists/GetByTitle('faquestion')/items",
+    this.props.context.spHttpClient.get(`${this.props.context.pageContext.web.absoluteUrl}/_api/lists/GetByTitle('faquestion')/items?$select=ID,Title,answer,Order0&$orderby= Order0`,
     SPHttpClient.configurations.v1).then((response: SPHttpClientResponse)=>{
       response.json().then((responseJSON:any)=>{
     console.log(responseJSON);
@@ -53,7 +63,7 @@ export default class Faquestion extends React.Component<IFaquestionProps, any> {
   }
 
   public getitems(id:any):void {
-    this.props.context.spHttpClient.get(`https://wintrust.sharepoint.com/sites/SharePointTeam/_api/lists/GetByTitle('faquestion')/items(${id})`,
+    this.props.context.spHttpClient.get(`${this.props.context.pageContext.web.absoluteUrl}/_api/lists/GetByTitle('faquestion')/items(${id})`,
     SPHttpClient.configurations.v1).then((response: SPHttpClientResponse)=>{
       response.json().then((responseJSON:any)=>{
     console.log(responseJSON);
@@ -85,9 +95,10 @@ public closerichtext=()=>{
   public savebutton(id:any){
     const body: string = JSON.stringify({
       'Title': this.state.question,
-      'answer': this.state.answer
+      'answer': this.state.answer,
+      'Order0': this.state.order
     });
-    this.props.context.spHttpClient.post(`https://wintrust.sharepoint.com/sites/SharePointTeam/_api/lists/GetByTitle('faquestion')/items(${id})`,
+    this.props.context.spHttpClient.post(`${this.props.context.pageContext.web.absoluteUrl}/_api/lists/GetByTitle('faquestion')/items(${id})`,
         SPHttpClient.configurations.v1,
         {
           headers: {
@@ -121,10 +132,11 @@ public closerichtext=()=>{
       },
       body: JSON.stringify({
         'Title': this.state.question,
-        'answer': this.state.answer
+        'answer': this.state.answer,
+        'Order0': this.state.order
       })};
     
-    this.props.context.spHttpClient.post(`https://wintrust.sharepoint.com/sites/SharePointTeam/_api/lists/GetByTitle('faquestion')/items`, SPHttpClient.configurations.v1, spOpts)
+    this.props.context.spHttpClient.post(`${this.props.context.pageContext.web.absoluteUrl}/_api/lists/GetByTitle('faquestion')/items`, SPHttpClient.configurations.v1, spOpts)
       .then((response: SPHttpClientResponse) => {
         // Access properties of the response object. 
         
@@ -133,7 +145,7 @@ public closerichtext=()=>{
         response.json().then((responseJSON: JSON) => {
           console.log(responseJSON);
           this.getallitems();
-          this.setState({editmodal:true,modal:false});
+          this.setState({editmodal:true,modal:false,question:"",answer:""});
         });
       });
 
@@ -173,6 +185,10 @@ public closerichtext=()=>{
   public updatequestion(e:any){
     this.setState({question:e.target.value})
   }
+
+  public updateorder(e:any){
+    this.setState({order:e.target.value})
+  }
   
 
   public render(): React.ReactElement<IFaquestionProps> {
@@ -193,7 +209,7 @@ public closerichtext=()=>{
                 this.state.editmodal  ?
 
                 <React.Fragment>
-                <div className={"itemResponse"}>{item.answer}</div>
+                <div className={"itemResponse"}><div dangerouslySetInnerHTML={{__html: item.answer}} /></div>
                     <div className={"itemResponse"}><button className={styles.spanclasscreate} onClick={()=>this.edititem(item.Id)}>Edit</button></div>
                     </React.Fragment>
                     :
@@ -206,6 +222,7 @@ public closerichtext=()=>{
                        <input className={styles.inputproperty}type='text' onChange={(e)=>this.updatequestion(e)} value={this.state.question}></input>
                       <RichText value={this.state.answer}
                     onChange={(text)=>this.onTextChange(text)}/>
+                    <input className={styles.inputproperty}type='number' onChange={(e)=>this.updateorder(e)} value={this.state.order}></input>
                    
                   
                     <span>
@@ -258,8 +275,7 @@ public closerichtext=()=>{
     );
   }
 }
-
-/--CstomStyle--/
+//-- Custom Style--/
 .accordion__title > *:last-child,
 .accordion__body > *:last-child {
     margin-bottom: 0;
@@ -423,8 +439,7 @@ animation-duration: 1.5s;
     .ql-container.ql-snow {
         margin-bottom: 5px;
     }
-
-//SCSS//
+//--SCSS--/
 @import '~@fluentui/react/dist/sass/References.scss';
 
 .faquestion {
